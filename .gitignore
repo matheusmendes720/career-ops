@@ -8,6 +8,8 @@ data/parser-output/**/*.json
 !data/parser-output/.gitkeep
 !data/parser-output/**/.gitkeep
 data/cache/ats-companies/
+data/offers/*
+!data/offers/.gitkeep
 reports/*.md
 !reports/.gitkeep
 output/*

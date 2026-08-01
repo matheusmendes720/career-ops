@@ -6199,11 +6199,23 @@ try {
     // CLI guard compares import.meta.url (realpath-resolved) against argv[1].
     // A symlinked path silently suppresses main() and yields empty stdout.
     const e2eTmp = realpathSync(mkdtempSync(join(tmpdir(), 'co-cadence-e2e-')));
+    // NODE_PATH fallback: set via env instead of symlink if EPERM (Windows without
+    // Developer Mode can't create symlinks to directories).
+    const nodeModulesPath = join(ROOT, 'node_modules');
+    let useNodePath = false;
+    try {
+      symlinkSync(nodeModulesPath, join(e2eTmp, 'node_modules'), 'dir');
+    } catch (symErr) {
+      if (symErr.code === 'EPERM') {
+        useNodePath = true; // fall back to NODE_PATH below
+      } else {
+        throw symErr;
+      }
+    }
     try {
       copyFileSync(join(ROOT, 'followup-cadence.mjs'), join(e2eTmp, 'followup-cadence.mjs'));
       copyFileSync(join(ROOT, 'tracker-parse.mjs'), join(e2eTmp, 'tracker-parse.mjs'));
       copyFileSync(join(ROOT, 'tracker-aliases.json'), join(e2eTmp, 'tracker-aliases.json'));
-      symlinkSync(join(ROOT, 'node_modules'), join(e2eTmp, 'node_modules'), 'dir');
       mkdirSync(join(e2eTmp, 'data'), { recursive: true });
       writeFileSync(join(e2eTmp, 'data', 'applications.md'), [
         '# Applications Tracker',
@@ -6221,7 +6233,11 @@ try {
         cwd: e2eTmp,
         encoding: 'utf-8',
         timeout: 30000,
-        env: { ...process.env, CAREER_OPS_PROFILE: '' },
+        env: {
+          ...process.env,
+          CAREER_OPS_PROFILE: '',
+          ...(useNodePath ? { NODE_PATH: nodeModulesPath } : {}),
+        },
       });
       const e2e = JSON.parse(e2eOut.trim());
       const byNum = new Map((e2e.entries || []).map(entry => [entry.num, entry]));
